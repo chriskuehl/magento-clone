@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # clones a remote Magento installation into the current working directory
-import sys, os, time, random
+import sys, os, time, random, re
 import xml.etree.ElementTree as etree 
 
 if len(sys.argv) != 2:
@@ -66,16 +66,33 @@ print("\tDB Name: {}".format(dbname))
 # copy the data from the old database to the new one
 print("Copying database from server to local...")
 start = time.time()
-os.system('ssh -C {} "mysqldump -u\'{}\' -p\'{}\' -h\'{}\' \'{}\'" | mysql -u"{}" -p"{}" -h"{}" -D"{}"'.format(remote_user_host, tusername, tpassword, thost, tdbname, username, password, host, dbname))
+#os.system('ssh -C {} "mysqldump -u\'{}\' -p\'{}\' -h\'{}\' \'{}\'" | mysql -u"{}" -p"{}" -h"{}" -D"{}"'.format(remote_user_host, tusername, tpassword, thost, tdbname, username, password, host, dbname))
 end = time.time()
 
 print("Database copied in {}s.".format(int(end - start)))
 
 # adjust the MySQL information in local.xml
+# 
+# we use regex to edit the text of the XML file directly
+# because we don't want to strip stuff like <![CDATA[]]> or
+# the Magento license comments (this is what happens when
+# making the changes with ElementTree)
+content = ""
 
-nhost.text = host
-nusername.text = username
-npassword.text = password
-ndbname.text = dbname
+with open("app/etc/local.xml", "r") as local:
+	content = local.read()
+	
+	replacements = {
+		'host': host,
+		'username': username,
+		'password': password,
+		'dbname': dbname
+	}
+	
+	for k, v in replacements.items():
+		# TODO: improve this to avoid potential false matches
+		content = re.sub("<{0}>(.*?)</{0}>".format(k), "<{0}><![CDATA[{1}]]></{0}>".format(k, v), content)
 
-conf.write("app/etc/local.xml")
+# TODO: is there a way to combine this with the previous?
+with open("app/etc/local.xml", "w") as local:
+	local.write(content)
