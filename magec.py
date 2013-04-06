@@ -23,7 +23,7 @@ print("Cloning from Magento repository on {} at {}...".format(remote_user_host, 
 
 # clone the remote directory into the current directory
 start = time.time()
-os.system('ssh -C {} "cd {} && tar cf - --exclude=var *" | tar xf -'.format(remote_user_host, remote_path))
+#os.system('ssh -C {} "cd {} && tar cf - --exclude=var *" | tar xf -'.format(remote_user_host, remote_path))
 end = time.time()
 
 print("Files cloned in {}s.".format(int(end - start)))
@@ -70,3 +70,12 @@ os.system('ssh -C {} "mysqldump -u\'{}\' -p\'{}\' -h\'{}\' \'{}\'" | mysql -u"{}
 end = time.time()
 
 print("Database copied in {}s.".format(int(end - start)))
+
+# adjust the MySQL information in local.xml
+
+nhost.text = host
+nusername.text = username
+npassword.text = password
+ndbname.text = dbname
+
+conf.write("app/etc/local.xml")
