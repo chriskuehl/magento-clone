@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # clones a remote Magento installation into the current working directory
-import sys, os, time, random, re
+import sys, os, time, random, re, pymysql
 import xml.etree.ElementTree as etree 
 
 if len(sys.argv) != 2:
@@ -23,7 +23,7 @@ print("Cloning from Magento repository on {} at {}...".format(remote_user_host, 
 
 # clone the remote directory into the current directory
 start = time.time()
-os.system('ssh -C {} "cd {} && tar cf - --exclude=var * .htaccess" | pv | tar xf -'.format(remote_user_host, remote_path))
+os.system('ssh -C {} "cd {} && tar cf - --exclude=var * .htaccess" | pv -t -e -r -b | tar xf -'.format(remote_user_host, remote_path))
 end = time.time()
 
 print("Files cloned in {}s.".format(int(end - start)))
@@ -66,7 +66,7 @@ print("\tDB Name: {}".format(dbname))
 # copy the data from the old database to the new one
 print("Copying database from server to local...")
 start = time.time()
-os.system('ssh -C {} "mysqldump -u\'{}\' -p\'{}\' -h\'{}\' \'{}\'" | pv | mysql -u"{}" -p"{}" -h"{}" -D"{}"'.format(remote_user_host, tusername, tpassword, thost, tdbname, username, password, host, dbname))
+os.system('ssh -C {} "mysqldump -u\'{}\' -p\'{}\' -h\'{}\' \'{}\'" | pv -t -e -r -b | mysql -u"{}" -p"{}" -h"{}" -D"{}"'.format(remote_user_host, tusername, tpassword, thost, tdbname, username, password, host, dbname))
 end = time.time()
 
 print("Database copied in {}s.".format(int(end - start)))
@@ -101,4 +101,29 @@ with open("app/etc/local.xml", "w") as local:
 # add some necessary directories
 print("Recreating var directory...")
 if not os.path.exists("var"):
-    os.makedirs("var")
+	os.makedirs("var")
+
+# update core_config_data with new site URL
+print("Updating core_config_data with new site URL...")
+conn = pymysql.connect(host=host, user=username, passwd=password, db=dbname)
+cur = conn.cursor()
+cur.execute("SELECT `value` FROM `core_config_data` WHERE `path` = 'web/unsecure/base_url'")
+
+# TODO: can we select by column name rather than index?
+old_url = cur.fetchone()[0]
+
+# TODO: support user-specified domain names rather than just appending .dev
+domain = re.search("https?://(.*?)/", old_url).group(1)
+domain += ".dev"
+
+new_url = "http://{}/".format(domain)
+
+conn.cursor().execute("UPDATE `core_config_data` SET `value` = {} WHERE `path` = 'web/unsecure/base_url' OR `path` = 'web/secure/base_url'".format(conn.escape(new_url)))
+
+cur.close()
+conn.commit()
+conn.close()
+
+# all done
+print("Magento cloned successfully.")
+print("\tNew URL: {}".format(new_url))
