@@ -23,7 +23,7 @@ print("Cloning from Magento repository on {} at {}...".format(remote_user_host, 
 
 # clone the remote directory into the current directory
 start = time.time()
-os.system('ssh -C {} "cd {} && tar cf - --exclude=var * .htaccess" | tar xf -'.format(remote_user_host, remote_path))
+os.system('ssh -C {} "cd {} && tar cf - --exclude=var * .htaccess" | pv | tar xf -'.format(remote_user_host, remote_path))
 end = time.time()
 
 print("Files cloned in {}s.".format(int(end - start)))
@@ -66,7 +66,7 @@ print("\tDB Name: {}".format(dbname))
 # copy the data from the old database to the new one
 print("Copying database from server to local...")
 start = time.time()
-os.system('ssh -C {} "mysqldump -u\'{}\' -p\'{}\' -h\'{}\' \'{}\'" | mysql -u"{}" -p"{}" -h"{}" -D"{}"'.format(remote_user_host, tusername, tpassword, thost, tdbname, username, password, host, dbname))
+os.system('ssh -C {} "mysqldump -u\'{}\' -p\'{}\' -h\'{}\' \'{}\'" | pv | mysql -u"{}" -p"{}" -h"{}" -D"{}"'.format(remote_user_host, tusername, tpassword, thost, tdbname, username, password, host, dbname))
 end = time.time()
 
 print("Database copied in {}s.".format(int(end - start)))
