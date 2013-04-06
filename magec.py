@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # clones a remote Magento installation into the current working directory
-import sys, os, time
+import sys, os, time, random
 import xml.etree.ElementTree as etree 
 
 if len(sys.argv) != 2:
@@ -23,7 +23,7 @@ print("Cloning from Magento repository on {} at {}...".format(remote_user_host, 
 
 # clone the remote directory into the current directory
 start = time.time()
-#os.system('ssh -C {} "cd {} && tar cv - --exclude=var *" | tar xvf -'.format(remote_user_host, remote_path))
+os.system('ssh -C {} "cd {} && tar cf - --exclude=var *" | tar xf -'.format(remote_user_host, remote_path))
 end = time.time()
 
 print("Files cloned in {}s.".format(int(end - start)))
@@ -47,3 +47,26 @@ print("\tHost: {}".format(thost))
 print("\tUsername: {}".format(tusername))
 print("\tPassword: {}".format(tpassword))
 print("\tDB Name: {}".format(tdbname))
+
+# create a new database on localhost
+host = "localhost"
+username = "magec"
+password = "magec"
+dbname = "magec_{}-{}".format(remote_host.replace(".", "-"), random.randint(10000, 99999))
+
+print("Creating new database on {}...".format(host))
+os.system('echo "CREATE DATABASE \\`{}\\`;" | mysql -u"{}" -p"{}" -h"{}"'.format(dbname, username, password, host))
+
+print("New MySQL settings:")
+print("\tHost: {}".format(host))
+print("\tUsername: {}".format(username))
+print("\tPassword: {}".format(password))
+print("\tDB Name: {}".format(dbname))
+
+# copy the data from the old database to the new one
+print("Copying database from server to local...")
+start = time.time()
+os.system('ssh -C {} "mysqldump -u\'{}\' -p\'{}\' -h\'{}\' \'{}\'" | mysql -u"{}" -p"{}" -h"{}" -D"{}"'.format(remote_user_host, tusername, tpassword, thost, tdbname, username, password, host, dbname))
+end = time.time()
+
+print("Database copied in {}s.".format(int(end - start)))
